@@ -26,12 +26,12 @@
 # viewer to its full URL (CORS headers below already allow that).
 # ---------------------------------------------------------------------------
 
-import os, json, urllib.request, urllib.error
+import os, re, json, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.fireworks.ai/inference/v1")
 LLM_API_KEY  = os.environ.get("LLM_API_KEY", "")
-LLM_MODEL    = os.environ.get("LLM_MODEL", "accounts/fireworks/models/llama-v3p3-70b-instruct")
+LLM_MODEL    = os.environ.get("LLM_MODEL", "accounts/fireworks/models/qwen3-8b")
 
 SYSTEM = """You are the assistant for Quant Firm (codename Oracle) — a verifiable-reward \
 reinforcement-learning environment built on HUD for the Frontier/RSI RL Environments Hackathon. \
@@ -79,7 +79,7 @@ def ask_llm(question, history=None):
         "model": LLM_MODEL,
         "messages": messages,
         "temperature": 0.3,
-        "max_tokens": 500,
+        "max_tokens": 700,
     }).encode("utf-8")
     req = urllib.request.Request(
         LLM_BASE_URL.rstrip("/") + "/chat/completions",
@@ -90,7 +90,9 @@ def ask_llm(question, history=None):
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.loads(resp.read().decode("utf-8"))
-    return data["choices"][0]["message"]["content"].strip()
+    text = data["choices"][0]["message"]["content"]
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+    return text
 
 
 class handler(BaseHTTPRequestHandler):
