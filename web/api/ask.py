@@ -2,28 +2,18 @@
 # ---------------------------------------------------------------------------
 # Backend for the Quant Firm judge chatbot. Stdlib only — no pip installs.
 #
-# Front-end contract (already wired in quant_firm_viewer.html):
-#   POST /api/ask      body: {"question": "...", "history": [optional]}
-#   200  ->            {"answer": "..."}
+# Front-end contract (wired in quant_firm_viewer.html):
+#   POST /api/ask   body: {"question": "...", "history": [optional]}  -> {"answer": "..."}
 #
-# DEPLOY (Vercel, same-origin — simplest, no CORS):
-#   1. Put quant_firm_landing.html + quant_firm_viewer.html at the repo root
-#      you deploy, and this file at  api/ask.py .
-#   2. In the Vercel project settings, set environment variables:
-#        LLM_API_KEY   = your Fireworks key   (required; stays server-side)
-#        LLM_MODEL     = a model on your account (optional; default below)
-#        LLM_BASE_URL  = OpenAI-compatible base (optional; default Fireworks)
-#   3. Deploy. The viewer calls /api/ask on the same origin, so no CORS setup.
+# CONFIG (Vercel project env vars; key stays server-side):
+#   LLM_API_KEY   = your Fireworks key            (required)
+#   LLM_MODEL     = pin one model (optional)       -- if unset, tries FALLBACK_MODELS
+#   LLM_BASE_URL  = OpenAI-compatible base         (optional; default Fireworks)
 #
-# Run it on the SAME model you trained instead (on-brand) — point it at the
-# HUD gateway:
-#        LLM_BASE_URL = https://inference.beta.hud.ai/v1
-#        LLM_API_KEY  = your HUD key
-#        LLM_MODEL    = Qwen/Qwen3-8B
-#
-# If you host the static files somewhere WITHOUT serverless functions
-# (e.g. GitHub Pages), deploy this elsewhere and set ORACLE_ENDPOINT in the
-# viewer to its full URL (CORS headers below already allow that).
+# To run on the model you trained instead (HUD gateway):
+#   LLM_BASE_URL = https://inference.beta.hud.ai/v1
+#   LLM_API_KEY  = your HUD key
+#   LLM_MODEL    = Qwen/Qwen3-8B
 # ---------------------------------------------------------------------------
 
 import os, re, json, urllib.request, urllib.error
@@ -31,7 +21,16 @@ from http.server import BaseHTTPRequestHandler
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.fireworks.ai/inference/v1")
 LLM_API_KEY  = os.environ.get("LLM_API_KEY", "")
-LLM_MODEL    = os.environ.get("LLM_MODEL", "accounts/fireworks/models/qwen3-8b")
+LLM_MODEL    = os.environ.get("LLM_MODEL", "").strip()
+
+# Fireworks serverless models confirmed available (June 2026). Tried in order
+# until one responds; the first that isn't NOT_FOUND wins.
+FALLBACK_MODELS = [
+    "accounts/fireworks/models/glm-5p2",
+    "accounts/fireworks/models/kimi-k2p6",
+    "accounts/fireworks/models/qwen3p7-plus",
+    "accounts/fireworks/models/minimax-m3",
+]
 
 SYSTEM = """You are the assistant for Quant Firm (codename Oracle) — a verifiable-reward \
 reinforcement-learning environment built on HUD for the Frontier/RSI RL Environments Hackathon. \
@@ -67,16 +66,9 @@ WHO USES IT
 - A systematic quant consumes it upstream, as a verified fundamental-feature pipeline feeding their model: we verify the number, they make the trade. That is why the reward is correctness, never P&L."""
 
 
-def ask_llm(question, history=None):
-    if not LLM_API_KEY:
-        return ("The backend is deployed but no model key is set. "
-                "Set LLM_API_KEY in the server environment to enable live answers.")
-    messages = [{"role": "system", "content": SYSTEM}]
-    if isinstance(history, list):
-        messages += history[-6:]
-    messages.append({"role": "user", "content": question})
+def _post(model, messages):
     payload = json.dumps({
-        "model": LLM_MODEL,
+        "model": model,
         "messages": messages,
         "temperature": 0.3,
         "max_tokens": 700,
@@ -88,11 +80,36 @@ def ask_llm(question, history=None):
                  "Authorization": "Bearer " + LLM_API_KEY},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urllib.request.urlopen(req, timeout=55) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     text = data["choices"][0]["message"]["content"]
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
     return text
+
+
+def ask_llm(question, history=None):
+    if not LLM_API_KEY:
+        return ("The backend is deployed but no model key is set. "
+                "Set LLM_API_KEY in the server environment to enable live answers.")
+    messages = [{"role": "system", "content": SYSTEM}]
+    if isinstance(history, list):
+        messages += history[-6:]
+    messages.append({"role": "user", "content": question})
+
+    candidates = [LLM_MODEL] if LLM_MODEL else FALLBACK_MODELS
+    last_detail = ""
+    for model in candidates:
+        try:
+            return _post(model, messages)
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "ignore")
+            last_detail = body[:300]
+            # model unavailable on this account -> try the next candidate
+            if e.code == 404 or "NOT_FOUND" in body or "not found" in body.lower():
+                continue
+            raise RuntimeError("model error (%s): %s" % (e.code, last_detail))
+    raise RuntimeError("no available model. tried: %s | last: %s"
+                       % (", ".join(candidates), last_detail))
 
 
 class handler(BaseHTTPRequestHandler):
@@ -127,7 +144,5 @@ class handler(BaseHTTPRequestHandler):
                 return
             answer = ask_llm(question, body.get("history"))
             self._json(200, {"answer": answer})
-        except urllib.error.HTTPError as e:
-            self._json(502, {"error": "model error", "detail": e.read().decode("utf-8", "ignore")[:300]})
         except Exception as e:
-            self._json(500, {"error": str(e)})
+            self._json(502, {"error": str(e)})
