@@ -61,7 +61,19 @@ async def analyze_compute(ticker: str = "AAPL", year: int = 2022, difficulty: in
     yield controllable.grade_compute(answer, rubric)["reward"]
 
 
-TICKERS = ["AAPL", "MSFT", "NVDA", "KO", "HD"]
+from quant_firm.data import edgar
+
+# Curated marquee large-caps, filtered to the hermetic gold cache (~293 S&P 500
+# companies) so every published task runs offline with no SEC egress.
+_CURATED = [
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "AMD", "INTC", "CSCO", "ORCL",
+    "ADBE", "CRM", "QCOM", "TXN", "AVGO", "MU", "AMAT", "ADI", "LRCX", "KLAC",
+    "WMT", "COST", "HD", "LOW", "TGT", "NKE", "SBUX", "MCD", "TSLA", "F",
+    "KO", "PEP", "PG", "CL", "KMB", "MDLZ", "ABBV", "ABT", "MRK", "PFE",
+    "JNJ", "LLY", "TMO", "DHR", "CAT", "DE", "HON", "MMM", "GE", "BA",
+]
+_CACHED = {k.split(":")[0] for k in edgar._gold_cache() if k.endswith(":2022")}
+TICKERS = [t for t in _CURATED if t in _CACHED] or ["AAPL", "MSFT", "NVDA", "KO", "HD"]
 
 
 def _mk(ticker: str, difficulty: int):
