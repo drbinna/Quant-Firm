@@ -93,10 +93,22 @@
   .cite a{color:var(--mint);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}
   .cite a:hover{border-color:var(--mintdim)}
   .trend{margin-top:2px}
+  .chartcard{border:1px solid var(--line);border-radius:12px;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));padding:12px 14px 8px}
+  .charthead{display:flex;align-items:center;margin-bottom:4px}
   .trendsrc{font-family:var(--mono);font-size:10px;letter-spacing:.04em;margin-left:10px}
-  .chartbox{margin-top:12px;border:1px solid var(--line);border-radius:12px;
-    background:linear-gradient(180deg,var(--panel),var(--panel2));padding:12px 12px 6px}
+  .chartx{margin-left:auto;background:none;border:0;color:var(--faint);font-size:13px;line-height:1;
+    cursor:pointer;padding:2px 4px;border-radius:6px;transition:color .15s;display:none}
+  .chartx:hover{color:var(--text)}
   #chart{width:100%;height:auto;display:block}
+  /* dock as a floating card in the bottom-right on desktop */
+  @media (min-width:901px){
+    .trend{position:fixed;right:22px;bottom:22px;width:min(430px,40vw);margin:0;z-index:6;
+      animation:dockin .4s cubic-bezier(.2,.8,.2,1) both}
+    .trend .chartcard{box-shadow:0 20px 54px rgba(0,0,0,.6)}
+    .trend .chartx{display:block}
+  }
+  @keyframes dockin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
   /* ledger */
   .row{display:grid;grid-template-columns:16px 1fr auto auto;gap:14px;align-items:baseline;
@@ -237,8 +249,14 @@
     <div class="cite" id="cite"></div>
 
     <div class="trend" id="trend" hidden>
-      <div class="eye" style="margin-top:22px">Margin trend · fiscal year<span class="trendsrc" id="trendsrc"></span></div>
-      <div class="chartbox"><svg id="chart" viewBox="0 0 640 214" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gross margin by fiscal year, from SEC EDGAR"></svg></div>
+      <div class="chartcard">
+        <div class="charthead">
+          <span class="eye" style="margin:0">Margin trend · fiscal year</span>
+          <span class="trendsrc" id="trendsrc"></span>
+          <button class="chartx" id="chartx" aria-label="Hide chart" title="Hide">✕</button>
+        </div>
+        <svg id="chart" viewBox="0 0 640 214" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gross margin by fiscal year, from SEC EDGAR"></svg>
+      </div>
     </div>
 
     <hr class="rule" />
@@ -445,6 +463,8 @@
     running=false; run.disabled=false;
   }
   run.addEventListener('click',go);
+  var cx=document.getElementById('chartx');
+  if(cx){cx.addEventListener('click',function(){document.getElementById('trend').hidden=true;});}
 })();
 
 /* ============================================================================
