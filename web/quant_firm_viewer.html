@@ -92,6 +92,11 @@
   .cite{font-family:var(--mono);font-size:12px;color:var(--faint);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .cite a{color:var(--mint);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}
   .cite a:hover{border-color:var(--mintdim)}
+  .trend{margin-top:2px}
+  .trendsrc{font-family:var(--mono);font-size:10px;letter-spacing:.04em;margin-left:10px}
+  .chartbox{margin-top:12px;border:1px solid var(--line);border-radius:12px;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));padding:12px 12px 6px}
+  #chart{width:100%;height:auto;display:block}
 
   /* ledger */
   .row{display:grid;grid-template-columns:16px 1fr auto auto;gap:14px;align-items:baseline;
@@ -231,6 +236,11 @@
     <p class="driver" id="driver"></p>
     <div class="cite" id="cite"></div>
 
+    <div class="trend" id="trend" hidden>
+      <div class="eye" style="margin-top:22px">Margin trend · fiscal year<span class="trendsrc" id="trendsrc"></span></div>
+      <div class="chartbox"><svg id="chart" viewBox="0 0 640 214" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gross margin by fiscal year, from SEC EDGAR"></svg></div>
+    </div>
+
     <hr class="rule" />
     <div class="eye">Verification · ground truth: SEC EDGAR / XBRL</div>
     <div id="rows"></div>
@@ -285,6 +295,61 @@
   var CKg='<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="none" stroke="#34D8C2" stroke-width="2"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#34D8C2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var Xg='<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="none" stroke="#E27566" stroke-width="2"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#E27566" stroke-width="2.2" stroke-linecap="round"/></svg>';
   var EDGAR='https://www.sec.gov/Archives/edgar/data/320193/000032019322000108/0000320193-22-000108-index.htm';
+
+  // Real SEC EDGAR values — used if the live /api/facts fetch is slow or unavailable.
+  var FALLBACK=[
+    {fy:2017,margin:38.47},{fy:2018,margin:38.34},{fy:2019,margin:37.82},
+    {fy:2020,margin:38.23},{fy:2021,margin:41.78},{fy:2022,margin:43.31},
+    {fy:2023,margin:44.13},{fy:2024,margin:46.21},{fy:2025,margin:46.91}];
+  var factsP=fetch('/api/facts').then(function(r){if(!r.ok)throw 0;return r.json();})
+    .then(function(d){var s=((d&&d.series)||[]).map(function(x){return {fy:x.fy,margin:x.margin};});
+      return s.length?{series:s,live:true}:{series:FALLBACK,live:false};})
+    .catch(function(){return {series:FALLBACK,live:false};});
+
+  function drawTrend(series,mode){
+    series=series.slice().sort(function(a,b){return a.fy-b.fy;});
+    var W=640,H=214,padL=36,padR=16,padT=22,padB=30;
+    var plotW=W-padL-padR, plotH=H-padT-padB, baseY=padT+plotH, n=series.length;
+    var ms=series.map(function(s){return s.margin;});
+    var yMin=Math.floor(Math.min.apply(null,ms))-2, yMax=Math.ceil(Math.max.apply(null,ms))+2;
+    function X(i){return padL+(n<2?0:i/(n-1)*plotW);}
+    function Y(v){return padT+(1-(v-yMin)/(yMax-yMin))*plotH;}
+    var MINT='#34D8C2',RUST='#E27566',FAINT='#586D82',LINE='#202E3D',BG='#07090E',MD='#1F8C7E';
+    var MONO='ui-monospace,Menlo,Consolas,monospace';
+    var i22=-1; series.forEach(function(s,i){if(s.fy===2022)i22=i;});
+    var g=['<defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0" stop-color="'+MINT+'" stop-opacity=".22"/>'+
+      '<stop offset="1" stop-color="'+MINT+'" stop-opacity="0"/></linearGradient></defs>'];
+    for(var t=Math.ceil(yMin/4)*4;t<=yMax;t+=4){
+      var gy=Y(t).toFixed(1);
+      g.push('<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'" stroke="'+LINE+'" stroke-width="1" opacity=".55"/>');
+      g.push('<text x="'+(padL-8)+'" y="'+(Y(t)+3).toFixed(1)+'" text-anchor="end" font-family="'+MONO+'" font-size="10" fill="'+FAINT+'">'+t+'%</text>');
+    }
+    var pts=series.map(function(s,i){return X(i).toFixed(1)+','+Y(s.margin).toFixed(1);});
+    g.push('<path d="M'+X(0).toFixed(1)+','+baseY+' L'+pts.join(' L')+' L'+X(n-1).toFixed(1)+','+baseY+' Z" fill="url(#mg)"/>');
+    g.push('<path d="M'+pts.join(' L')+'" fill="none" stroke="'+MINT+'" stroke-width="2"/>');
+    series.forEach(function(s,i){
+      g.push('<text x="'+X(i).toFixed(1)+'" y="'+(H-9)+'" text-anchor="middle" font-family="'+MONO+'" font-size="10" fill="'+FAINT+'">'+s.fy+'</text>');
+      g.push('<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(s.margin).toFixed(1)+'" r="3" fill="'+BG+'" stroke="'+MINT+'" stroke-width="2"/>');
+    });
+    if(i22>=0){
+      var hx=X(i22), filed=series[i22].margin, hy=Y(filed);
+      if(mode==='hack'){
+        var cy=padT;
+        g.push('<line x1="'+hx.toFixed(1)+'" y1="'+hy.toFixed(1)+'" x2="'+hx.toFixed(1)+'" y2="'+(cy+9).toFixed(1)+'" stroke="'+RUST+'" stroke-width="1.5" stroke-dasharray="3 3" opacity=".85"/>');
+        g.push('<path d="M'+(hx-5).toFixed(1)+','+(cy+8)+' L'+hx.toFixed(1)+','+cy+' L'+(hx+5).toFixed(1)+','+(cy+8)+'" fill="none" stroke="'+RUST+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>');
+        g.push('<text x="'+(hx+9).toFixed(1)+'" y="'+(cy+3)+'" text-anchor="start" font-family="'+MONO+'" font-size="11" font-weight="600" fill="'+RUST+'">claim 60.00%</text>');
+        g.push('<text x="'+(hx+9).toFixed(1)+'" y="'+(cy+16)+'" text-anchor="start" font-family="'+MONO+'" font-size="9.5" fill="'+FAINT+'">off the filed trend</text>');
+        g.push('<circle cx="'+hx.toFixed(1)+'" cy="'+hy.toFixed(1)+'" r="4.5" fill="'+RUST+'" stroke="'+BG+'" stroke-width="1.5"/>');
+        g.push('<text x="'+hx.toFixed(1)+'" y="'+(hy+18).toFixed(1)+'" text-anchor="middle" font-family="'+MONO+'" font-size="10" fill="'+RUST+'">filed '+filed.toFixed(2)+'%</text>');
+      } else {
+        g.push('<circle cx="'+hx.toFixed(1)+'" cy="'+hy.toFixed(1)+'" r="5" fill="'+MINT+'" stroke="'+BG+'" stroke-width="1.5"/>');
+        g.push('<text x="'+hx.toFixed(1)+'" y="'+(hy-12).toFixed(1)+'" text-anchor="middle" font-family="'+MONO+'" font-size="11.5" font-weight="600" fill="'+MINT+'">'+filed.toFixed(2)+'%</text>');
+        g.push('<text x="'+hx.toFixed(1)+'" y="'+(hy-25).toFixed(1)+'" text-anchor="middle" font-family="'+MONO+'" font-size="9" fill="'+MD+'" letter-spacing="1">VERIFIED</text>');
+      }
+    }
+    document.getElementById('chart').innerHTML=g.join('');
+  }
   var CRIT=[
     {n:'calc_margin', d:'matches filed financials', w:0.45},
     {n:'calc_revenue',d:'matches XBRL', w:0.15},
@@ -330,6 +395,7 @@
     document.getElementById('verdict').textContent=''; document.getElementById('verdict').className='verdict';
     rows.innerHTML=''; document.getElementById('fill').style.width='0';
     document.getElementById('fill').classList.remove('bad'); document.getElementById('num').textContent='0.00';
+    var tr=document.getElementById('trend'); if(tr){tr.hidden=true; document.getElementById('chart').innerHTML='';}
   }
 
   async function go(){
@@ -351,6 +417,11 @@
     document.getElementById('cite').innerHTML='cite&nbsp;<a href="'+EDGAR+'" target="_blank" rel="noopener">accession 0000320193-22-000108 ↗</a><span>opens the live 10-K on SEC EDGAR</span>';
     var vd=document.getElementById('verdict'); vd.textContent=M.verdict; vd.className='verdict '+(M.flag?'bad':'ok');
     panel.classList.add('show');
+    factsP.then(function(fd){try{drawTrend(fd.series,mode);
+      var sc=document.getElementById('trendsrc');
+      sc.textContent=fd.live?'● live · data.sec.gov':'cached · data.sec.gov';
+      sc.style.color=fd.live?'#34D8C2':'#586D82';
+      document.getElementById('trend').hidden=false;}catch(e){}});
     await wait(360);
     var total=0;
     for(var c=0;c<CRIT.length;c++){
