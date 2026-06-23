@@ -37,6 +37,17 @@
   .sub{color:var(--mut);font-size:13.5px;margin:0}
 
   .eye{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .chathead-row{display:flex;align-items:center;margin-bottom:12px}
+  .chatclose{margin-left:auto;background:none;border:0;color:var(--faint);font-size:13px;line-height:1;
+    cursor:pointer;padding:3px 5px;border-radius:6px;transition:color .15s}
+  .chatclose:hover{color:var(--text)}
+  .chatreopen{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-size:13px;
+    color:var(--text);background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--mintdim);border-radius:999px;padding:9px 16px;cursor:pointer;
+    transition:border-color .15s,background .15s}
+  .chatreopen:hover{border-color:var(--mint);background:rgba(52,216,194,.08)}
+  .chatreopen svg{width:15px;height:15px;color:var(--mint)}
+  .chathead-row[hidden],.chatreopen[hidden]{display:none}
 
   /* query */
   .q{font-size:21px;font-weight:500;line-height:1.35;margin:0 0 22px;letter-spacing:-.01em}
@@ -282,8 +293,15 @@
 
    <aside class="chatcol">
   <!-- ============================ CHATBOT (appearance) ============================ -->
-  <div class="eye">Ask the firm · for judges</div>
-  <div class="chatwrap">
+  <div class="chathead-row" id="chathead">
+    <span class="eye" style="margin:0">Ask the firm · for judges</span>
+    <button class="chatclose" id="chatclose" aria-label="Hide chat" title="Hide chat">✕</button>
+  </div>
+  <button class="chatreopen" id="chatreopen" hidden>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-5.5A8 8 0 1 1 21 12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    Ask the firm
+  </button>
+  <div class="chatwrap" id="chatwrap">
     <div class="thread" id="thread">
       <div class="msg bot">
         <div class="av">QF</div>
@@ -536,6 +554,21 @@
   var input=document.getElementById('cin');
   var sendBtn=document.getElementById('csend');
   var chips=document.getElementById('chips');
+
+  // ── close / reopen the chat ───────────────────────────────────────
+  (function(){
+    var head=document.getElementById('chathead');
+    var wrap=document.getElementById('chatwrap');
+    var closeBtn=document.getElementById('chatclose');
+    var reopen=document.getElementById('chatreopen');
+    function setOpen(open){
+      if(head)head.hidden=!open;
+      if(wrap)wrap.hidden=!open;
+      if(reopen)reopen.hidden=open;
+    }
+    if(closeBtn)closeBtn.addEventListener('click',function(){setOpen(false);});
+    if(reopen)reopen.addEventListener('click',function(){setOpen(true);});
+  })();
 
   function scroll(){ thread.scrollTop=thread.scrollHeight; }
 
