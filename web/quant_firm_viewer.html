@@ -18,11 +18,11 @@
   body{background:var(--bg);color:var(--text);font-family:var(--sans);
     -webkit-font-smoothing:antialiased;line-height:1.5;padding:0;position:relative}
   /* subtle corona glow — a nod to the orb on the landing */
-  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
     background:
       radial-gradient(90% 50% at 50% -8%, rgba(235,182,97,.10) 0%, rgba(235,182,97,0) 55%),
       radial-gradient(80% 40% at 50% 108%, rgba(52,216,194,.06) 0%, rgba(52,216,194,0) 60%)}
-  .app{position:relative;z-index:1;min-height:100vh;max-width:1360px;margin:0 auto;
+  .app{position:relative;min-height:100vh;max-width:1360px;margin:0 auto;
     padding:46px 5vw 40px;display:flex;flex-direction:column}
   .top{margin-bottom:32px}
   .cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(330px,.92fr);
@@ -109,7 +109,7 @@
   #chart{width:100%;height:auto;display:block}
   /* dock as a floating card in the bottom-right on desktop */
   @media (min-width:901px){
-    .trend{position:fixed;right:22px;bottom:22px;width:min(430px,40vw);margin:0;z-index:6;
+    .trend{position:fixed;right:22px;bottom:22px;width:min(410px,36vw);margin:0;z-index:40;
       animation:dockin .4s cubic-bezier(.2,.8,.2,1) both}
     .trend .chartcard{box-shadow:0 20px 54px rgba(0,0,0,.6)}
     .trend .chartx{display:block}
@@ -143,7 +143,7 @@
   /* ===== chatbot — APPEARANCE ONLY (backend request is wired in by you) ===== */
   .chatwrap{border:1px solid var(--line);border-radius:14px;background:
     linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);overflow:hidden}
-  .thread{max-height:clamp(300px,54vh,560px);overflow-y:auto;padding:20px 18px 8px;display:flex;flex-direction:column;gap:16px;
+  .thread{max-height:clamp(260px,42vh,430px);overflow-y:auto;padding:20px 18px 8px;display:flex;flex-direction:column;gap:16px;
     scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
   .thread::-webkit-scrollbar{width:7px}
   .thread::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}

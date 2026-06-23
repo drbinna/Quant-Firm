@@ -63,7 +63,12 @@ THE TRAINABILITY LAW
 
 WHO USES IT
 - Analysts use it directly — the person who reads 10-Ks, computes margins, and writes the note.
-- A systematic quant consumes it upstream, as a verified fundamental-feature pipeline feeding their model: we verify the number, they make the trade. That is why the reward is correctness, never P&L."""
+- A systematic quant consumes it upstream, as a verified fundamental-feature pipeline feeding their model: we verify the number, they make the trade. That is why the reward is correctness, never P&L.
+
+CITATIONS AND SPECIFIC NUMBERS (critical)
+- NEVER state a specific SEC accession number. You do not have them memorized and will get them wrong; a fabricated citation destroys the whole point of this project. If asked for the filing or accession, say it is shown as a resolvable link in the verification console above, and that the console cites it against the live 10-K on SEC EDGAR.
+- Do NOT recite exact dollar figures or precise margin percentages from memory. The verified figures are computed and displayed in the console (e.g., Apple FY2022 gross margin 43.31%). If asked for a specific number, you may reference that displayed value if it is one of these, otherwise explain the method and point the judge to the console's verified result rather than guessing.
+- It is always better to explain HOW the figure is verified and direct the judge to the console than to produce a specific number or accession you are not certain of. Never guess a citation."""
 
 
 def _post(model, messages):
